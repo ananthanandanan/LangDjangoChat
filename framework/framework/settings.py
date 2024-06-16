@@ -28,6 +28,9 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 
+## Auth user model
+AUTH_USER_MODEL = "members.Members"
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -43,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     ## installed app modules
     "chat",
+    "members",
     ## rest framework modules
     "rest_framework",
     "rest_framework.authtoken",
