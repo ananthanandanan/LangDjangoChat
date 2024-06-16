@@ -31,5 +31,9 @@ class ChatMessage(models.Model):
     sender = models.CharField(max_length=1, choices=SENDER_TYPES, default="U")
     timestamp = models.DateTimeField(auto_now_add=True)
 
+    @property
+    def sender_enum(self):
+        return dict(self.SENDER_TYPES).get(self.sender)
+
     def __str__(self):
         return self.content

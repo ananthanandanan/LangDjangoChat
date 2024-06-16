@@ -105,7 +105,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 text_data=json.dumps(
                     {
                         "message": message.content,
-                        "sender": message.sender,
+                        "sender": message.sender_enum,
                         "timestamp": message.timestamp.isoformat(),
                         "category": "chat_log",
                     }
