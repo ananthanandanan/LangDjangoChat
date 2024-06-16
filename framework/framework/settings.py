@@ -86,6 +86,15 @@ TEMPLATES = [
 WSGI_APPLICATION = "framework.wsgi.application"
 ASGI_APPLICATION = "framework.asgi.application"
 
+## Channel layer settings
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
+}
 
 ## Rest framework settings
 REST_FRAMEWORK = {
