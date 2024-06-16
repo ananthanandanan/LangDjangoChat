@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Chat</title>
+  </head>
+  <body>
+    <h2>Chat Room</h2>
+    <div id="thread-section">
+      <input type="text" id="thread-id" placeholder="Thread ID" />
+      <button onclick="joinThread()">Join Thread</button>
+      <button onclick="createThread()">Create Thread</button>
+    </div>
+    <div id="chat-section" style="display: none">
+      <div
+        id="messages"
+        style="border: 1px solid #ccc; height: 300px; overflow-y: scroll"
+      ></div>
+      <input type="text" id="message-input" placeholder="Type a message" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+    <script>
+      let threadId;
+      let socket;
+      const token = "{{ token }}"; // Get the token from the context
+      const ongoingMessages = {}; // Object to keep track of ongoing messages by stream_id
+
+      function joinThread() {
+        threadId = document.getElementById("thread-id").value;
+        if (threadId) {
+          document.getElementById("thread-section").style.display = "none";
+          document.getElementById("chat-section").style.display = "block";
+          connectWebSocket();
+        }
+      }
+
+      function createThread() {
+        threadId = document.getElementById("thread-id").value || generateUUID(); // Use input value or generate a new unique thread ID
+        document.getElementById("thread-section").style.display = "none";
+        document.getElementById("chat-section").style.display = "block";
+        connectWebSocket();
+      }
+
+      function connectWebSocket() {
+        socket = new WebSocket(
+          `ws://${window.location.host}/ws/chat/${threadId}/?token=${token}`
+        );
+
+        socket.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          console.log("Received data:", data); // Debugging line
+          const messages = document.getElementById("messages");
+
+          // If this is a user message, display it immediately
+          if (data.category === "user_message") {
+            const message = document.createElement("div");
+            message.textContent = `${data.timestamp} - ${data.sender}: ${data.message}`;
+            messages.appendChild(message);
+          }
+
+          // Handle chat log messages
+          if (data.category === "chat_log") {
+            const message = document.createElement("div");
+            message.textContent = `${data.timestamp} - ${data.sender}: ${data.message}`;
+            messages.appendChild(message);
+          }
+
+          // If this is the start of a new stream, create a new message element
+          if (data.category === "stream_start") {
+            ongoingMessages[data.stream_id] = document.createElement("div");
+            ongoingMessages[
+              data.stream_id
+            ].textContent = `${data.timestamp} - ${data.sender}: `;
+            messages.appendChild(ongoingMessages[data.stream_id]);
+          }
+
+          // Append chunks to the ongoing message
+          if (data.category === "stream_chunk") {
+            ongoingMessages[data.stream_id].textContent += data.message;
+          }
+
+          // Finalize the message when the stream ends
+          if (data.category === "stream_end") {
+            delete ongoingMessages[data.stream_id];
+          }
+
+          messages.scrollTop = messages.scrollHeight; // Scroll to bottom
+        };
+
+        socket.onclose = function (event) {
+          console.error("WebSocket closed unexpectedly");
+        };
+      }
+
+      function sendMessage() {
+        const input = document.getElementById("message-input");
+        const message = input.value;
+        socket.send(JSON.stringify({ message: message }));
+        input.value = "";
+      }
+
+      function generateUUID() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+          /[xy]/g,
+          function (c) {
+            const r = (Math.random() * 16) | 0,
+              v = c === "x" ? r : (r & 0x3) | 0x8;
+            return v.toString(16);
+          }
+        );
+      }
+    </script>
+  </body>
+</html>
