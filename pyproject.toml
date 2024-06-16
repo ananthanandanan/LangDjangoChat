@@ -19,6 +19,7 @@ huey = "^2.5.1"
 gevent = "^24.2.1"
 pyjwt = "^2.8.0"
 environ = "^1.0"
+python-dotenv = "^1.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
