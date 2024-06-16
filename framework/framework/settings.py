@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
+import logging
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -94,6 +95,20 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+}
+
+## Huey settings
+HUEY = {
+    "huey_class": "huey.RedisHuey",
+    "name": "framework",
+    "connection": {"host": "localhost", "port": 6379, "db": 1},
+    "immediate": False,
+    "immediate_use_memory": False,
+    "consumer": {
+        "workers": 4,
+        "worker_type": "greenlet",
+        "loglevel": logging.DEBUG,
+    },
 }
 
 # Database
