@@ -21,11 +21,6 @@ auth_token: solara.Reactive[str] = solara.reactive(
     "df1067116e92626ec05b3ff0bebdd39d9c719f1b"
 )
 
-# ## redirect
-# def redirect(url):
-#     router = solara.use_router()
-#     router.push(url)
-
 
 @solara.component
 def ChatPage():
@@ -85,13 +80,20 @@ def ChatPage():
             websocket_task.value.cancel()
         websocket_task.value = solara.lab.use_task(connect_websocket)
 
-    solara.use_effect(lambda: start_websocket(), [thread_id.value, token.value])
+    # Ensure start_websocket is called in every render with consistent dependencies
+    solara.use_effect(start_websocket, [thread_id.value, token.value])
 
     def send(message):
         messages.value = [*messages.value, {"role": "user", "content": message}]
         user_message_count.value += 1  # Update reactively
 
-    solara.lab.use_task(send_message, dependencies=[user_message_count.value])
+    # Ensure send_message task is always scheduled in every render
+    solara.use_effect(
+        lambda: solara.lab.use_task(
+            send_message, dependencies=[user_message_count.value]
+        ),
+        [user_message_count.value],
+    )
 
     with solara.Column(style={"width": "700px", "height": "50vh"}):
         with solara.lab.ChatBox():
