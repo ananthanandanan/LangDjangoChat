@@ -169,7 +169,7 @@ def LoginPage():
 
     with solara.Column(
         style={
-            "width": "400px",
+            "width": "800px",
             "height": "400px",
             "display": "flex",
             "flexDirection": "column",

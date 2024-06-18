@@ -65,6 +65,10 @@ Follow these steps to install and set up LangChatDjango on your local machine:
    poetry run solara run frontend/chatbot.py
    ```
 
+## Screenshots
+
+![alt text](image.png)
+
 ## Usage
 
 Open the browser and go to `http://localhost:8000/chat/register/` to register a new user, then go to `http://localhost:8000/chat/chatroom/` to chat with the bot. If you want to chat with the bot in the same chatroom, open another browser and go to `http://localhost:8000/chat/chatroom/`. As an existing user, you can login at `http://localhost:8000/chat/login/`.
