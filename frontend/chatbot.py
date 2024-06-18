@@ -3,7 +3,7 @@ import solara.lab
 import json
 import asyncio
 import websockets
-from typing import List
+from typing import List, Dict
 from typing_extensions import TypedDict
 import requests
 
@@ -20,17 +20,18 @@ websocket: solara.Reactive[websockets.WebSocketClientProtocol] = solara.reactive
 auth_token: solara.Reactive[str] = solara.reactive(
     "df1067116e92626ec05b3ff0bebdd39d9c719f1b"
 )
+is_connected: solara.Reactive[bool] = solara.reactive(False)
 
 
 @solara.component
 def ChatPage():
-    user_message_count = solara.reactive(
-        len([m for m in messages.value if m["role"] == "user"])
-    )
     ongoing_messages = solara.reactive({})
-    websocket_task = solara.reactive(None)
+    user_message_count = solara.reactive(0)
 
     async def connect_websocket():
+        if is_connected.value:
+            return  # Prevent creating multiple WebSocket connections
+
         websocket_url = (
             f"ws://localhost:8000/ws/chat/{thread_id.value}/?token={token.value}"
         )
@@ -38,9 +39,16 @@ def ChatPage():
         try:
             ws = await websockets.connect(websocket_url)
             websocket.value = ws
-            async for message in ws:
-                data = json.loads(message)
-                handle_websocket_message(data)
+            is_connected.value = True
+
+            try:
+                async for message in ws:
+                    data = json.loads(message)
+                    handle_websocket_message(data)
+            finally:
+                await ws.close()
+                websocket.value = None
+                is_connected.value = False
         except asyncio.CancelledError:
             print("WebSocket connection task was cancelled.")
         except Exception as e:
@@ -49,10 +57,7 @@ def ChatPage():
     def handle_websocket_message(data):
         print("Received message", data)
         if data["category"] == "user_message":
-            messages.value = [
-                *messages.value,
-                {"role": "user", "content": data["message"]},
-            ]
+            messages.value.append({"role": "user", "content": data["message"]})
         elif data["category"] in ["stream_start", "stream_chunk", "stream_end"]:
             stream_id = data["stream_id"]
             if data["category"] == "stream_start":
@@ -60,10 +65,6 @@ def ChatPage():
                 messages.value.append(ongoing_messages.value[stream_id])
             elif data["category"] == "stream_chunk":
                 ongoing_messages.value[stream_id]["content"] += data["message"]
-                messages.value = [
-                    *messages.value[:-1],
-                    ongoing_messages.value[stream_id],
-                ]
             elif data["category"] == "stream_end":
                 del ongoing_messages.value[stream_id]
 
@@ -75,25 +76,21 @@ def ChatPage():
                 json.dumps({"message": latest_message["content"]})
             )
 
-    def start_websocket():
-        if websocket_task.value is not None:
-            websocket_task.value.cancel()
-        websocket_task.value = solara.lab.use_task(connect_websocket)
-
-    # Ensure start_websocket is called in every render with consistent dependencies
-    solara.use_effect(start_websocket, [thread_id.value, token.value])
-
     def send(message):
-        messages.value = [*messages.value, {"role": "user", "content": message}]
+        messages.value.append({"role": "user", "content": message})
         user_message_count.value += 1  # Update reactively
+        asyncio.create_task(send_message())  # Send message immediately after updating
 
-    # Ensure send_message task is always scheduled in every render
-    solara.use_effect(
-        lambda: solara.lab.use_task(
-            send_message, dependencies=[user_message_count.value]
-        ),
-        [user_message_count.value],
-    )
+    def start_connection():
+        asyncio.create_task(connect_websocket())
+
+    def stop_connection():
+        if websocket.value:
+            asyncio.create_task(websocket.value.close())
+        is_connected.value = False
+
+    solara.use_effect(start_connection, [])
+    solara.use_effect(stop_connection, [])
 
     with solara.Column(style={"width": "700px", "height": "50vh"}):
         with solara.lab.ChatBox():
@@ -129,9 +126,7 @@ def LoginPage():
             headers={"Authorization": f"Token {auth_token.value}"},
         )
         if response.status_code == 200:
-            print(response.json())
             token.value = response.json()["token"]
-            print("Token", token.value)
             ThreadPage()
         else:
             login_error.value = "Invalid credentials"
