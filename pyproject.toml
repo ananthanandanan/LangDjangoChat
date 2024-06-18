@@ -20,6 +20,9 @@ gevent = "^24.2.1"
 pyjwt = "^2.8.0"
 environ = "^1.0"
 python-dotenv = "^1.0.1"
+solara = "^1.33.0"
+solara-ui = "^1.33.0"
+markdown = "^3.6"
 
 
 [tool.poetry.group.dev.dependencies]

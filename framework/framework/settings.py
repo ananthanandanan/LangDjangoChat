@@ -29,19 +29,24 @@ SECRET_KEY = "django-insecure-!ylku_j+o%s(zs9)i7qp++&=ex%@0it@l6%j03n@gn_3ezqof9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 ## Auth user model
 AUTH_USER_MODEL = "members.Members"
+## Cross origin requests
+CORS_ALLOW_ALL_ORIGINS = True
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8765",  # Adjust this to match your frontend URL
+]
 # Application definition
 
 INSTALLED_APPS = [
     ## websocket modules
     "daphne",
-    "channels",
     "corsheaders",  ## for cross origin requests
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -59,6 +64,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -119,7 +125,7 @@ HUEY = {
     "consumer": {
         "workers": 4,
         "worker_type": "greenlet",
-        "loglevel": logging.DEBUG,
+        "loglevel": logging.INFO,
     },
 }
 

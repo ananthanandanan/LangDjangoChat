@@ -5,6 +5,10 @@ from .models import ChatThread, ChatMessage
 from members.models import Members
 from .tasks import handle_chat_message
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -13,15 +17,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if not self.user.is_authenticated:
             await self.close()
+            logger.warning(f"Connection rejected for unauthenticated user.")
             return
 
         self.thread = await self.get_or_create_thread(self.thread_id, self.user)
         await self.channel_layer.group_add(self.thread_id, self.channel_name)
         await self.accept()
         await self.send_chat_logs()
+        logger.info(f"User {self.user} connected to thread {self.thread_id}.")
 
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.thread_id, self.channel_name)
+        logger.info(f"User {self.user} disconnected from thread {self.thread_id}.")
 
     async def receive(self, text_data=None, bytes_data=None):
         text_data_json = json.loads(text_data)

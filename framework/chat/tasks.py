@@ -28,7 +28,6 @@ async def stream_response(thread_id, query):
     response = ""
     async for chunk in runnable.astream({"input": query}):
         response += chunk.content
-        logging.warning(f"Stream chunk: {chunk.content}")
         await send(
             {
                 "type": "chat.message",
