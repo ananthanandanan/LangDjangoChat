@@ -40,6 +40,7 @@ Follow these steps to install and set up LangChatDjango on your local machine:
    ```bash
    poetry run python manage.py makemigrations
    poetry run python manage.py migrate
+   poetry run python manage.py createsuperuser
    ```
 
 4. **Start Redis server**
