@@ -16,6 +16,7 @@ LangChatDjango is a Django-based web application that allows users to chat with 
 - Django Rest Framework (DRF) with token authentication
 - Huey (task queue for background tasks)
 - Redis (for caching and message queuing)
+- Solara (UI framework)
 
 ## Installation
 
@@ -54,8 +55,14 @@ Follow these steps to install and set up LangChatDjango on your local machine:
    ```
 
 6. **Start Django server**
+
    ```bash
    poetry run python manage.py runserver
+   ```
+
+7. **Start Solara server**
+   ```bash
+   poetry run solara run frontend/chatbot.py
    ```
 
 ## Usage
