@@ -29,23 +29,35 @@ auth_token: solara.Reactive[str] = solara.reactive(
 
 @solara.component
 def ChatPage():
-    user_message_count = len([m for m in messages.value if m["role"] == "user"])
+    user_message_count = solara.reactive(
+        len([m for m in messages.value if m["role"] == "user"])
+    )
     ongoing_messages = solara.reactive({})
+    websocket_task = solara.reactive(None)
 
     async def connect_websocket():
         websocket_url = (
             f"ws://localhost:8000/ws/chat/{thread_id.value}/?token={token.value}"
         )
         print("URL", websocket_url)
-        ws = await websockets.connect(websocket_url)
-        websocket.value = ws
-        async for message in ws:
-            data = json.loads(message)
-            handle_websocket_message(data)
+        try:
+            ws = await websockets.connect(websocket_url)
+            websocket.value = ws
+            async for message in ws:
+                data = json.loads(message)
+                handle_websocket_message(data)
+        except asyncio.CancelledError:
+            print("WebSocket connection task was cancelled.")
+        except Exception as e:
+            print(f"WebSocket connection error: {e}")
 
     def handle_websocket_message(data):
+        print("Received message", data)
         if data["category"] == "user_message":
-            messages.value.append({"role": "user", "content": data["message"]})
+            messages.value = [
+                *messages.value,
+                {"role": "user", "content": data["message"]},
+            ]
         elif data["category"] in ["stream_start", "stream_chunk", "stream_end"]:
             stream_id = data["stream_id"]
             if data["category"] == "stream_start":
@@ -53,23 +65,33 @@ def ChatPage():
                 messages.value.append(ongoing_messages.value[stream_id])
             elif data["category"] == "stream_chunk":
                 ongoing_messages.value[stream_id]["content"] += data["message"]
-                messages.value = messages.value  # Trigger reactive update
+                messages.value = [
+                    *messages.value[:-1],
+                    ongoing_messages.value[stream_id],
+                ]
             elif data["category"] == "stream_end":
                 del ongoing_messages.value[stream_id]
 
     async def send_message():
+        print("Sending message")
         if websocket.value:
             latest_message = messages.value[-1]
             await websocket.value.send(
                 json.dumps({"message": latest_message["content"]})
             )
 
-    solara.use_effect(solara.lab.use_task(connect_websocket), [])
+    def start_websocket():
+        if websocket_task.value is not None:
+            websocket_task.value.cancel()
+        websocket_task.value = solara.lab.use_task(connect_websocket)
+
+    solara.use_effect(lambda: start_websocket(), [thread_id.value, token.value])
 
     def send(message):
-        messages.value.append({"role": "user", "content": message})
+        messages.value = [*messages.value, {"role": "user", "content": message}]
+        user_message_count.value += 1  # Update reactively
 
-    solara.lab.use_task(send_message, dependencies=[user_message_count])
+    solara.lab.use_task(send_message, dependencies=[user_message_count.value])
 
     with solara.Column(style={"width": "700px", "height": "50vh"}):
         with solara.lab.ChatBox():
@@ -148,13 +170,6 @@ def generate_uuid():
 
 @solara.component
 def Page():
-
-    # routes = [
-    #     solara.Route("/thread", component=ThreadPage, label="Thread"),
-    #     solara.Route("/chat", component=ChatPage, label="Chat"),
-    #     solara.Route("/", component=LoginPage, label="Login"),
-    # ]
-
     if not token.value:
         LoginPage()
     elif not thread_id.value:
