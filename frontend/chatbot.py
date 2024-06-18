@@ -13,7 +13,6 @@ class MessageDict(TypedDict):
     content: str
 
 
-messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
 token: solara.Reactive[str] = solara.reactive("")
 thread_id: solara.Reactive[str] = solara.reactive("")
 websocket: solara.Reactive[websockets.WebSocketClientProtocol] = solara.reactive(None)
@@ -25,6 +24,7 @@ is_connected: solara.Reactive[bool] = solara.reactive(False)
 
 @solara.component
 def ChatPage():
+    messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
     ongoing_messages = solara.reactive({})
     user_message_count = solara.reactive(0)
 
@@ -57,7 +57,10 @@ def ChatPage():
     def handle_websocket_message(data):
         print("Received message", data)
         if data["category"] == "user_message":
-            messages.value.append({"role": "user", "content": data["message"]})
+            messages.value = [
+                *messages.value,
+                {"role": "user", "content": data["message"]},
+            ]
         elif data["category"] in ["stream_start", "stream_chunk", "stream_end"]:
             stream_id = data["stream_id"]
             if data["category"] == "stream_start":
@@ -65,6 +68,10 @@ def ChatPage():
                 messages.value.append(ongoing_messages.value[stream_id])
             elif data["category"] == "stream_chunk":
                 ongoing_messages.value[stream_id]["content"] += data["message"]
+                messages.value = [
+                    *messages.value[:-1],
+                    ongoing_messages.value[stream_id],
+                ]
             elif data["category"] == "stream_end":
                 del ongoing_messages.value[stream_id]
 
@@ -77,7 +84,10 @@ def ChatPage():
             )
 
     def send(message):
-        messages.value.append({"role": "user", "content": message})
+        messages.value = [
+            *messages.value,
+            {"role": "user", "content": message},
+        ]
         user_message_count.value += 1  # Update reactively
         asyncio.create_task(send_message())  # Send message immediately after updating
 
