@@ -20,11 +20,11 @@ auth_token: solara.Reactive[str] = solara.reactive(
     "df1067116e92626ec05b3ff0bebdd39d9c719f1b"
 )
 is_connected: solara.Reactive[bool] = solara.reactive(False)
+messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
 
 
 @solara.component
 def ChatPage():
-    messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
     ongoing_messages = solara.reactive({})
     user_message_count = solara.reactive(0)
 
@@ -35,7 +35,6 @@ def ChatPage():
         websocket_url = (
             f"ws://localhost:8000/ws/chat/{thread_id.value}/?token={token.value}"
         )
-        print("URL", websocket_url)
         try:
             ws = await websockets.connect(websocket_url)
             websocket.value = ws
@@ -55,8 +54,18 @@ def ChatPage():
             print(f"WebSocket connection error: {e}")
 
     def handle_websocket_message(data):
-        print("Received message", data)
-        if data["category"] == "user_message":
+        if data["category"] == "chat_log":
+            if data["sender"] == "Bot":
+                messages.value = [
+                    *messages.value,
+                    {"role": "assistant", "content": data["message"]},
+                ]
+            else:
+                messages.value = [
+                    *messages.value,
+                    {"role": "user", "content": data["message"]},
+                ]
+        elif data["category"] == "user_message":
             messages.value = [
                 *messages.value,
                 {"role": "user", "content": data["message"]},
@@ -65,7 +74,7 @@ def ChatPage():
             stream_id = data["stream_id"]
             if data["category"] == "stream_start":
                 ongoing_messages.value[stream_id] = {"role": "assistant", "content": ""}
-                messages.value.append(ongoing_messages.value[stream_id])
+                messages.value = [*messages.value, ongoing_messages.value[stream_id]]
             elif data["category"] == "stream_chunk":
                 ongoing_messages.value[stream_id]["content"] += data["message"]
                 messages.value = [
@@ -75,21 +84,15 @@ def ChatPage():
             elif data["category"] == "stream_end":
                 del ongoing_messages.value[stream_id]
 
-    async def send_message():
-        print("Sending message")
+    async def send_message(message):
         if websocket.value:
-            latest_message = messages.value[-1]
-            await websocket.value.send(
-                json.dumps({"message": latest_message["content"]})
-            )
+            await websocket.value.send(json.dumps({"message": message}))
 
     def send(message):
-        messages.value = [
-            *messages.value,
-            {"role": "user", "content": message},
-        ]
         user_message_count.value += 1  # Update reactively
-        asyncio.create_task(send_message())  # Send message immediately after updating
+        asyncio.create_task(
+            send_message(message)
+        )  # Send message immediately after updating
 
     def start_connection():
         asyncio.create_task(connect_websocket())
