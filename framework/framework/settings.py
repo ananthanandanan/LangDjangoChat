@@ -125,7 +125,7 @@ HUEY = {
     "consumer": {
         "workers": 4,
         "worker_type": "greenlet",
-        "loglevel": logging.DEBUG,
+        "loglevel": logging.INFO,
     },
 }
 

@@ -16,9 +16,7 @@ class MessageDict(TypedDict):
 token: solara.Reactive[str] = solara.reactive("")
 thread_id: solara.Reactive[str] = solara.reactive("")
 websocket: solara.Reactive[websockets.WebSocketClientProtocol] = solara.reactive(None)
-auth_token: solara.Reactive[str] = solara.reactive(
-    "df1067116e92626ec05b3ff0bebdd39d9c719f1b"
-)
+auth_token: solara.Reactive[str] = solara.reactive("")
 is_connected: solara.Reactive[bool] = solara.reactive(False)
 messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
 
@@ -142,19 +140,44 @@ def LoginPage():
     password: solara.Reactive[str] = solara.reactive("")
     login_error = solara.reactive("")
 
-    async def login():
+    async def get_auth_token():
         response = requests.post(
-            "http://localhost:8000/chat/log-in/",
-            json={"email": email.value, "password": password.value},
-            headers={"Authorization": f"Token {auth_token.value}"},
+            "http://localhost:8000/chat/api-token-auth/",
+            json={"username": email.value, "password": password.value},
         )
         if response.status_code == 200:
-            token.value = response.json()["token"]
-            ThreadPage()
-        else:
-            login_error.value = "Invalid credentials"
+            auth_token.value = response.json()["token"]
+        return response
 
-    with solara.Column(style={"width": "400px", "margin": "0 auto"}):
+    async def login():
+        auth_response = await get_auth_token()
+
+        if auth_response.status_code != 200:
+            login_error.value = "Invalid credentials"
+            return
+        else:
+            response = requests.post(
+                "http://localhost:8000/chat/log-in/",
+                json={"email": email.value, "password": password.value},
+                headers={"Authorization": f"Token {auth_token.value}"},
+            )
+            if response.status_code == 200:
+                token.value = response.json()["token"]
+                ThreadPage()
+            else:
+                login_error.value = "Invalid credentials"
+
+    with solara.Column(
+        style={
+            "width": "400px",
+            "height": "400px",
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "margin": "auto",
+        }
+    ):
         solara.Markdown("# Login")
         solara.InputText(label="Email", value=email)
         solara.InputText(label="Password", value=password, password=True)
@@ -175,7 +198,16 @@ def ThreadPage():
         thread_id.value = input_thread_id.value or generate_uuid()
         ChatPage()
 
-    with solara.Column(style={"width": "400px", "margin": "0 auto"}):
+    with solara.Column(
+        style={
+            "width": "400px",
+            "margin": "0 auto",
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "center",
+            "justifyContent": "center",
+        }
+    ):
         solara.Markdown("# Join or Create Thread")
         solara.InputText(label="Thread ID", value=input_thread_id)
         solara.Button("Join Thread", on_click=join_thread)
@@ -190,6 +222,17 @@ def generate_uuid():
 
 @solara.component
 def Page():
+    solara.Style(
+        """
+    html, body, #root {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+    }
+    """
+    )
     if not token.value:
         LoginPage()
     elif not thread_id.value:
