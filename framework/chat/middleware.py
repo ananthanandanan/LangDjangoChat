@@ -4,6 +4,10 @@ from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
 from channels.auth import AuthMiddlewareStack
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 @database_sync_to_async
 def get_user(token_key):
@@ -50,6 +54,11 @@ class TokenAuthMiddleware(BaseMiddleware):
         scope["user"] = (
             AnonymousUser() if token_key is None else await get_user(token_key)
         )
+
+        logger.debug(
+            f"User authenticated with token: {scope['user']}, token_key: {token_key}"
+        )
+
         return await super().__call__(scope, receive, send)
 
 

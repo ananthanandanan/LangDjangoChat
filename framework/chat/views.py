@@ -10,6 +10,8 @@ from rest_framework import viewsets
 from django.views import View
 from members.forms import MembersCreationForm
 from rest_framework.authtoken.models import Token
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
 
 class ChatThreadViewSet(viewsets.ModelViewSet):
@@ -57,6 +59,20 @@ class LoginView(View):
             token, created = Token.objects.get_or_create(user=user)
             return redirect("chatroom")
         return render(request, "chat/login.html", {"error": "Invalid credentials"})
+
+
+##TODO: Setup proper authentication, token generation, expiration, and refresh
+## https://stackoverflow.com/questions/14567586/token-authentication-for-restful-api-should-the-token-be-periodically-changed
+@api_view(["POST"])
+def login_view(request):
+    email = request.data.get("email")
+    password = request.data.get("password")
+    user = authenticate(request, email=email, password=password)
+    if user is not None:
+        login(request, user)
+        token, created = Token.objects.get_or_create(user=user)
+        return Response({"token": token.key})
+    return Response({"error": "Invalid credentials"}, status=400)
 
 
 def chat(request):
