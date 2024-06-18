@@ -25,7 +25,7 @@ messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
 
 @solara.component
 def ChatPage():
-    ongoing_messages = solara.reactive({})
+    # ongoing_messages = solara.reactive({})
     user_message_count = solara.reactive(0)
 
     async def connect_websocket():
@@ -71,18 +71,19 @@ def ChatPage():
                 {"role": "user", "content": data["message"]},
             ]
         elif data["category"] in ["stream_start", "stream_chunk", "stream_end"]:
-            stream_id = data["stream_id"]
+            # stream_id = data["stream_id"]
             if data["category"] == "stream_start":
-                ongoing_messages.value[stream_id] = {"role": "assistant", "content": ""}
-                messages.value = [*messages.value, ongoing_messages.value[stream_id]]
+                messages.value = [*messages.value, {"role": "assistant", "content": ""}]
             elif data["category"] == "stream_chunk":
-                ongoing_messages.value[stream_id]["content"] += data["message"]
                 messages.value = [
                     *messages.value[:-1],
-                    ongoing_messages.value[stream_id],
+                    {
+                        "role": "assistant",
+                        "content": messages.value[-1]["content"] + data["message"],
+                    },
                 ]
             elif data["category"] == "stream_end":
-                del ongoing_messages.value[stream_id]
+                pass
 
     async def send_message(message):
         if websocket.value:
@@ -104,8 +105,17 @@ def ChatPage():
 
     solara.use_effect(start_connection, [])
     solara.use_effect(stop_connection, [])
-
-    with solara.Column(style={"width": "700px", "height": "50vh"}):
+    ## Center the chat box style
+    with solara.Column(
+        style={
+            "width": "100vw",
+            "height": "100vh",
+            "display": "flex",
+            "alignItems": "center",
+            "justifyContent": "center",
+            "padding": "20px",
+        }
+    ):
         with solara.lab.ChatBox():
             for item in messages.value:
                 with solara.lab.ChatMessage(
@@ -123,7 +133,7 @@ def ChatPage():
                     border_radius="20px",
                 ):
                     solara.Markdown(item["content"])
-        solara.lab.ChatInput(send_callback=send)
+        solara.lab.ChatInput(send_callback=send, style={"width": "50%"})
 
 
 @solara.component
