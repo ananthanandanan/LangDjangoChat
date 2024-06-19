@@ -124,7 +124,7 @@ HUEY = {
     "immediate_use_memory": False,
     "consumer": {
         "workers": 4,
-        "worker_type": "greenlet",
+        "worker_type": "thread",
         "loglevel": logging.INFO,
     },
 }
