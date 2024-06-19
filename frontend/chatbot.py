@@ -11,6 +11,7 @@ import requests
 class MessageDict(TypedDict):
     role: str
     content: str
+    stream_id: str
 
 
 token: solara.Reactive[str] = solara.reactive("")
@@ -23,8 +24,23 @@ messages: solara.Reactive[List[MessageDict]] = solara.reactive([])
 
 @solara.component
 def ChatPage():
-    # ongoing_messages = solara.reactive({})
     user_message_count = solara.reactive(0)
+
+    def update_message_content(
+        messages: List[MessageDict], target_stream_id: str, new_content: str
+    ) -> List[MessageDict]:
+        updated_messages = []
+        for message in messages:
+            if message["stream_id"] == target_stream_id:
+                updated_message = {
+                    "role": message["role"],
+                    "content": message["content"] + new_content,
+                    "stream_id": message["stream_id"],
+                }
+                updated_messages.append(updated_message)
+            else:
+                updated_messages.append(message)
+        return updated_messages
 
     async def connect_websocket():
         if is_connected.value:
@@ -56,30 +72,30 @@ def ChatPage():
             if data["sender"] == "Bot":
                 messages.value = [
                     *messages.value,
-                    {"role": "assistant", "content": data["message"]},
+                    {"role": "assistant", "content": data["message"], "stream_id": ""},
                 ]
             else:
                 messages.value = [
                     *messages.value,
-                    {"role": "user", "content": data["message"]},
+                    {"role": "user", "content": data["message"], "stream_id": ""},
                 ]
         elif data["category"] == "user_message":
             messages.value = [
                 *messages.value,
-                {"role": "user", "content": data["message"]},
+                {"role": "user", "content": data["message"], "stream_id": ""},
             ]
         elif data["category"] in ["stream_start", "stream_chunk", "stream_end"]:
-            # stream_id = data["stream_id"]
+            stream_id = data["stream_id"]
             if data["category"] == "stream_start":
-                messages.value = [*messages.value, {"role": "assistant", "content": ""}]
-            elif data["category"] == "stream_chunk":
                 messages.value = [
-                    *messages.value[:-1],
-                    {
-                        "role": "assistant",
-                        "content": messages.value[-1]["content"] + data["message"],
-                    },
+                    *messages.value,
+                    {"role": "assistant", "content": "", "stream_id": stream_id},
                 ]
+            elif data["category"] == "stream_chunk":
+                updated_messages = update_message_content(
+                    messages.value, stream_id, data["message"]
+                )
+                messages.value = updated_messages
             elif data["category"] == "stream_end":
                 pass
 
@@ -114,6 +130,8 @@ def ChatPage():
             "padding": "20px",
         }
     ):
+        ## Show the Thread ID
+        solara.Markdown(f"## Thread ID: {thread_id.value}")
         with solara.lab.ChatBox():
             for item in messages.value:
                 with solara.lab.ChatMessage(
@@ -173,7 +191,7 @@ def LoginPage():
             "height": "400px",
             "display": "flex",
             "flexDirection": "column",
-            "alignItems": "center",
+            "AlignItems": "center",
             "justifyContent": "center",
             "margin": "auto",
         }
